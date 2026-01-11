@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 import json
+import sqlite3
+import logging
 from typing import Dict, Any, List
+from config import DB_PATH, logger
 
 class Agent(ABC):
     def __init__(self, name: str, orchestrator=None):
@@ -18,8 +21,21 @@ class Agent(ABC):
             "success": success
         }
         self.history.append(decision_entry)
-        # In a real implementation, we would also write this to the SQLite agent_decisions table
-        print(f"[{self.name}] Decision: {decision} (Confidence: {confidence})")
+        
+        # Persistent logging to DB
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO agent_decisions (agent_name, task, decision, reasoning, confidence, success)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (self.name, task, decision, reasoning, confidence, success))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Failed to log decision to DB: {str(e)}")
+
+        logger.info(f"[{self.name}] {decision} (Conf: {confidence})")
 
     @abstractmethod
     def process(self, message: Dict[str, Any]) -> Dict[str, Any]:
