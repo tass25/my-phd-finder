@@ -1,0 +1,11 @@
+venv/
+phd/
+__pycache__/
+*.pyc
+.env
+database/*.db
+data/*.pdf
+data/*.txt
+.ipynb_checkpoints/
+.streamlit/
+! .streamlit/config.toml
