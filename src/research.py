@@ -33,38 +33,34 @@ class ResearchAgent(Agent):
         # 1. Search for university list
         queries = [
             f"list of universities in {country} with computer science research",
-            f"top universities in {country} QS rankings 2025",
-            f"universities in {country} for PhD in AI"
+            f"top universities in {country} QS rankings 2025"
         ]
         
-        all_unis = []
+        raw_search_results = []
         for query in queries:
             results = self.search_tool.search(query)
-            # In a real scenario, we parse these results. 
-            # For this demo, we'll simulate finding some key universities.
-            # But the logic is: search -> extract names -> deduplicate -> save.
+            raw_search_results.extend(results)
         
-        # Simulated discovery for trial if search returns empty
-        # (This keeps the demo working even without real search API)
-        if country.lower() == "germany":
-            all_unis = [
-                {"name": "Technical University of Munich", "country": "Germany", "ranking_qs": 37},
-                {"name": "Ludwig Maximilian University of Munich", "country": "Germany", "ranking_qs": 59},
-                {"name": "RWTH Aachen University", "country": "Germany", "ranking_qs": 106}
-            ]
+        # Use LLM to extract a clean list of university names and countries from raw snippets
+        system_prompt = "You are a research assistant. Extract a list of university names and their QS rankings from search results."
+        user_prompt = f"Search Results: {json.dumps(raw_search_results)}\n\nExtract universities in JSON format: [{{'name': '...', 'country': '...', 'ranking_qs': 0}}]. Only include real ones from the text."
+        
+        response = llm.generate_response(system_prompt, user_prompt)
+        extracted_unis = llm.parse_json_response(response)
         
         # 2. Save to DB
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         found_count = 0
-        for uni in all_unis:
-            cursor.execute("SELECT id FROM universities WHERE name = ?", (uni['name'],))
-            if not cursor.fetchone():
-                cursor.execute("""
-                    INSERT INTO universities (name, country, ranking_qs, verification_status)
-                    VALUES (?, ?, ?, 'needs_check')
-                """, (uni['name'], uni['country'], uni.get('ranking_qs')))
-                found_count += 1
+        if isinstance(extracted_unis, list):
+            for uni in extracted_unis:
+                cursor.execute("SELECT id FROM universities WHERE name = ?", (uni.get('name'),))
+                if not cursor.fetchone():
+                    cursor.execute("""
+                        INSERT INTO universities (name, country, ranking_qs, verification_status)
+                        VALUES (?, ?, ?, 'needs_check')
+                    """, (uni.get('name'), uni.get('country', country), uni.get('ranking_qs')))
+                    found_count += 1
         conn.commit()
         conn.close()
 
@@ -88,9 +84,7 @@ class ResearchAgent(Agent):
         
         system_prompt = "You are an expert PhD matching assistant. Analyze if a university is a good fit for a student."
         user_prompt = f"""
-        Student Profile:
-        {student_profile}
-        
+        Student Profile: {student_profile}
         University: {name}
         Known Research Areas: {research_areas or 'Not yet scraped'}
         
@@ -132,33 +126,33 @@ class ResearchAgent(Agent):
         self.log_decision(
             task="Discover Professors",
             decision=f"Searching for faculty at {uni_name}",
-            reasoning=f"Need to identify research-active professors in CS/AI for university {university_id}.",
-            confidence=0.7,
+            reasoning=f"Identifying research-active professors in CS/AI for university {uni_name}.",
+            confidence=1.0,
             success=True
         )
         
-        # Logic: 
-        # 1. Search for "Faculty list {uni_name} Computer Science"
-        # 2. Scrape the page
-        # 3. Extract names and profiles
+        # 1. Search for faculty list
+        query = f"Faculty list {uni_name} Computer Science AI professors"
+        search_results = self.search_tool.search(query)
         
-        # Simulation for trials
-        if "Munich" in uni_name:
-            profs = [
-                {"name": "Prof. Nassim Labidi", "department": "AI & Robotics", "priority": 5, "accepting": "yes"},
-                {"name": "Prof. Hans Muller", "department": "Deep Learning", "priority": 4, "accepting": "yes"}
-            ]
-        else:
-            profs = []
+        # 2. Extract professor info via LLM
+        system_prompt = "Extract professor names and departments from search results."
+        user_prompt = f"Search Results: {json.dumps(search_results)}\n\nExtract in JSON format: [{{'name': '...', 'department': '...'}}]"
+        
+        response = llm.generate_response(system_prompt, user_prompt)
+        profs = llm.parse_json_response(response)
             
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        for prof in profs:
-            cursor.execute("""
-                INSERT INTO professors (university_id, name, department, contact_priority, accepting_students)
-                VALUES (?, ?, ?, ?, ?)
-            """, (university_id, prof['name'], prof['department'], prof['priority'], prof['accepting']))
+        saved_count = 0
+        if isinstance(profs, list):
+            for prof in profs:
+                cursor.execute("""
+                    INSERT INTO professors (university_id, name, department, contact_priority, accepting_students)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (university_id, prof.get('name'), prof.get('department'), 3, 'unknown'))
+                saved_count += 1
         conn.commit()
         conn.close()
         
-        return {"status": "success", "count": len(profs)}
+        return {"status": "success", "count": saved_count}

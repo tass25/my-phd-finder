@@ -1,5 +1,6 @@
 venv/
-phd/
+# phd/
+# venv/
 __pycache__/
 *.pyc
 .env

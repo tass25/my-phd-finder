@@ -69,19 +69,3 @@ class OrchestratorAgent(Agent):
             "data": results
         }
 
-    def save_decision_to_db(self, decision_entry: Dict[str, Any]):
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO agent_decisions (agent_name, task, decision, reasoning, confidence, success)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            decision_entry["agent_name"],
-            decision_entry["task"],
-            decision_entry["decision"],
-            decision_entry["reasoning"],
-            decision_entry["confidence"],
-            decision_entry["success"]
-        ))
-        conn.commit()
-        conn.close()

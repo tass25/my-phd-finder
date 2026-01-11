@@ -49,10 +49,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Initialize Session State
-if 'flow_running' not in st.session_state:
-    st.session_state.flow_running = False
+from src.learning import LearningAgent
 
+# Initialize agents
 @st.cache_resource
 def get_agents():
     bus = MessageBus()
@@ -64,11 +63,13 @@ def get_agents():
     research = ResearchAgent(search, scraper, ranker)
     verification = VerificationAgent()
     outreach = OutreachAgent()
+    learning = LearningAgent()
     orchestrator = OrchestratorAgent(bus)
     
     bus.register_agent(research)
     bus.register_agent(verification)
     bus.register_agent(outreach)
+    bus.register_agent(learning)
     bus.register_agent(orchestrator)
     
     return orchestrator, bus, cv_parser
