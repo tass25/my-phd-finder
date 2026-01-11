@@ -1,7 +1,8 @@
 import sqlite3
 import json
-from .agents import Agent
-from .llm_utils import llm
+from typing import Dict, Any
+from src.agents import Agent
+from src.llm_utils import llm
 from config import DB_PATH, logger
 
 class OutreachAgent(Agent):

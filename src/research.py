@@ -1,9 +1,9 @@
 import sqlite3
 import json
 from typing import Dict, Any, List
-from .agents import Agent
-from .tools import WebSearch, WebScraper, RankingCalculator
-from .llm_utils import llm
+from src.agents import Agent, MessageBus
+from src.tools import WebSearch, WebScraper, RankingCalculator
+from src.llm_utils import llm
 from config import DB_PATH, logger
 
 class ResearchAgent(Agent):

@@ -18,33 +18,63 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for "Wow" factor
+# Custom CSS for Dark Theme
 st.markdown("""
     <style>
+    /* Dark Theme */
     .main {
-        background-color: #f8f9fa;
+        background-color: #0e1117;
+        color: #ffffff;
     }
+    .stApp {
+        background-color: #0e1117;
+    }
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #1a1d24;
+    }
+    [data-testid="stSidebar"] * {
+        color: #ffffff !important;
+    }
+    /* Buttons */
     .stButton>button {
         width: 100%;
         border-radius: 10px;
         height: 3em;
-        background-color: #007bff;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         font-weight: bold;
+        border: none;
     }
+    .stButton>button:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    /* Metrics */
     .stMetric {
-        background-color: white;
+        background-color: #1a1d24;
         padding: 15px;
         border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
-    .agent-log {
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 0.85rem;
-        background-color: #1e1e1e;
-        color: #d4d4d4;
-        padding: 15px;
-        border-radius: 8px;
+    .stMetric label {
+        color: #a0a0a0 !important;
+    }
+    .stMetric [data-testid="stMetricValue"] {
+        color: #ffffff !important;
+    }
+    /* Tables */
+    .stDataFrame {
+        background-color: #1a1d24;
+    }
+    /* Text */
+    h1, h2, h3, p, label, span {
+        color: #ffffff !important;
+    }
+    /* Progress bars */
+    .stProgress > div > div {
+        background-color: #667eea;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -106,18 +136,53 @@ with st.sidebar:
         if 'profile' not in st.session_state:
             st.warning("Please parse your CV profile first.")
         else:
-            st.session_state.flow_running = True
-            with st.status("🤖 AI Agents starting autonomous search...", expanded=True) as status:
-                orchestrator.process({
+            # Create progress tracking
+            progress_placeholder = st.empty()
+            status_placeholder = st.empty()
+            
+            with progress_placeholder.container():
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                # Phase 1
+                status_text.markdown("### 🔍 Phase 1/5: Discovering Universities")
+                progress_bar.progress(20)
+                
+                # Run the flow
+                result = orchestrator.process({
                     "action": "run_full_flow", 
                     "country": country, 
                     "student_profile": st.session_state.get('profile', '')
                 })
-                status.update(label="Full Flow Completed!", state="complete")
+                
+                # Complete
+                status_text.markdown("### ✅ All Phases Complete!")
+                progress_bar.progress(100)
+                
+            st.success("🎉 Autonomous search completed! Check the results below.")
+            st.balloons()
+            
+            # Force refresh to show new data
+            import time
+            time.sleep(1)
+            st.rerun()
 
 # Main Page Layout
 st.title("🎓 PhD Finder Dashboard")
 st.caption("Empowering your academic journey with Autonomous AI Agents")
+
+# Live Activity Monitor
+with st.expander("📊 Live Activity Monitor", expanded=True):
+    log_container = st.container()
+    with log_container:
+        try:
+            with open("agent_system.log", "r") as f:
+                logs = f.readlines()
+                recent_logs = logs[-20:]  # Show last 20 lines
+                log_text = "".join(recent_logs)
+                st.code(log_text, language="log")
+        except FileNotFoundError:
+            st.info("No activity logs yet. Start the autonomous flow to see live updates!")
 
 # Metrics row
 m1, m2, m3, m4 = st.columns(4)

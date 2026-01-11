@@ -1,5 +1,5 @@
 from typing import Dict, Any, List
-from .agents import Agent, MessageBus
+from src.agents import Agent, MessageBus
 import sqlite3
 from config import DB_PATH
 
@@ -27,41 +27,50 @@ class OrchestratorAgent(Agent):
         results = {"universities": [], "professors": [], "emails": []}
         
         # Phase 1: University Discovery
-        st_msg = "Phase 1: Discovering universities..."
-        logger.info(st_msg)
+        logger.info("=" * 50)
+        logger.info("🔍 PHASE 1: Discovering universities in " + country)
+        logger.info("=" * 50)
         disc_res = self.message_bus.send_message("Research", {"action": "find_universities", "country": country})
+        logger.info(f"✅ Discovered {disc_res.get('count', 0)} universities")
         
         # Phase 2: Analysis & Matching (for top 5 discovered)
-        st_msg = "Phase 2 & 3: Analyzing and verifying top universities..."
-        logger.info(st_msg)
+        logger.info("=" * 50)
+        logger.info("🎯 PHASE 2 & 3: Analyzing and verifying top universities")
+        logger.info("=" * 50)
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM universities WHERE country = ? LIMIT 5", (country,))
-        uni_ids = [r[0] for r in cursor.fetchall()]
+        cursor.execute("SELECT id, name FROM universities WHERE country = ? LIMIT 5", (country,))
+        unis = cursor.fetchall()
         conn.close()
         
-        for uid in uni_ids:
+        for idx, (uid, uname) in enumerate(unis, 1):
+            logger.info(f"📊 Analyzing university {idx}/5: {uname}")
             # Match
             self.message_bus.send_message("Research", {"action": "analyze_university_match", "university_id": uid, "student_profile": student_profile})
             # Verify
             self.message_bus.send_message("Verification", {"action": "verify_university", "university_id": uid})
             
             # Phase 4: Professor Discovery (for each top university)
-            st_msg = f"Phase 4: Finding professors at university {uid}..."
-            logger.info(st_msg)
+            logger.info(f"👨‍🔬 PHASE 4: Finding professors at {uname}")
             self.message_bus.send_message("Research", {"action": "find_professors", "university_id": uid})
             
         # Phase 5: Email Generation (for top 3 professors found)
-        st_msg = "Phase 5: Generating personalized emails..."
-        logger.info(st_msg)
+        logger.info("=" * 50)
+        logger.info("📧 PHASE 5: Generating personalized emails")
+        logger.info("=" * 50)
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM professors LIMIT 3")
-        prof_ids = [r[0] for r in cursor.fetchall()]
+        cursor.execute("SELECT id, name FROM professors LIMIT 3")
+        profs = cursor.fetchall()
         conn.close()
         
-        for pid in prof_ids:
+        for idx, (pid, pname) in enumerate(profs, 1):
+            logger.info(f"✍️ Generating email {idx}/3 for {pname}")
             self.message_bus.send_message("Outreach", {"action": "generate_email", "professor_id": pid, "student_profile": student_profile})
+        
+        logger.info("=" * 50)
+        logger.info("✅ FLOW COMPLETED SUCCESSFULLY!")
+        logger.info("=" * 50)
             
         return {
             "status": "success",

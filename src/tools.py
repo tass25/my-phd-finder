@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from typing import List, Dict, Any
 from PyPDF2 import PdfReader
-from config import GROQ_API_KEY, MODEL_NAME
+from config import GROQ_API_KEY, MODEL_NAME, logger
 
 class Tool:
     pass
@@ -78,7 +78,7 @@ class WebScraper(Tool):
 class RankingCalculator(Tool):
     def calculate_match(self, profile: str, target_description: str) -> Dict[str, Any]:
         """Real matching logic using LLM for profile comparison."""
-        from .llm_utils import llm
+        from src.llm_utils import llm
         
         system_prompt = "You are a PhD matching expert. Compare a student profile with a research opportunity."
         user_prompt = f"""
